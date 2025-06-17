@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Step Vehicle Shipping Form</title>
+  <style>
+    body {
+      background-color: #f1f1f1;
+      font-family: Roboto, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .form-container {
+      background-color: #fff;
+      padding: 30px;
+      width: 400px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .form-step {
+      display: none;
+    }
+    .form-step.active {
+      display: block;
+    }
+    .form-title {
+      font-size: 24px;
+      color: #0073e6;
+      margin-bottom: 5px;
+    }
+    .form-subtitle {
+      font-size: 14px;
+      margin-bottom: 20px;
+      color: #666;
+    }
+    input, select, .next-btn {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 5px;
+      border: 1px solid #666;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      font-size: 16px;
+      font-family: Roboto, Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    input[list]::-webkit-calendar-picker-indicator {
+      display: none;
+    }
+    input[list]:focus {
+      outline: none;
+      border-color: #0073e6;
+    }
+    .next-btn {
+      background-color: #0073e6;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      height: 8px;
+      background-color: #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .progress {
+      height: 100%;
+      background-color: #0073e6;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .thank-you {
+      text-align: center;
+      font-size: 18px;
+      display: none;
+    }
+    datalist option:hover {
+      background-color: #e0e0e0;
+      cursor: pointer;
+    }
+    datalist {
+      animation: fadeIn 0.3s ease-in-out;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px;
+      font-family: Roboto, Arial, sans-serif;
+    }
+    .error-msg {
+      color: red;
+      font-size: 12px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <div class="progress-bar"><div class="progress" id="progress"></div></div>
+    <div id="multiStepForm"></div>
+    <div class="thank-you" id="thankYouMsg">Thank you! Your information has been submitted.</div>
+  </div>
+
+  <script>
+    const currentYear = new Date().getFullYear();
+    const recentYears = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
+    const steps = [
+      { title: 'Ship From', subtitle: 'Enter the zip code where the vehicle is located', type: 'text', name: 'ship_from', datalist: 'zipList', placeholder: 'e.g. New York, 10001' },
+      { title: 'Ship To', subtitle: 'Enter the destination zip code', type: 'text', name: 'ship_to', datalist: 'zipList', placeholder: 'e.g. Dallas, 90071' },
+      { title: 'Ship Date', subtitle: 'Enter the shipping date', type: 'date', name: 'ship_date', placeholder: '' },
+      { title: 'Vehicle Year', subtitle: 'Select or type the vehicle year', type: 'text', name: 'vehicle_year', datalist: 'yearList', placeholder: 'e.g. 2017' },
+      { title: 'Make', subtitle: 'Enter the brand of the vehicle', type: 'text', name: 'make', placeholder: 'e.g. Toyota' },
+      { title: 'Model', subtitle: 'Enter the model of the vehicle', type: 'text', name: 'model', placeholder: 'e.g. Camry' },
+      { title: 'Running Condition', subtitle: 'Is the vehicle running?', type: 'select', name: 'running', options: ['Yes', 'No'] },
+      { title: 'Your Name', subtitle: 'Enter your full name', type: 'text', name: 'name', placeholder: 'e.g. John Doe' },
+      { title: 'Email Address', subtitle: 'Enter your email address', type: 'email', name: 'email', placeholder: 'e.g. john@example.com' },
+      { title: 'Phone Number', subtitle: 'Enter your contact number', type: 'tel', name: 'phone', placeholder: 'e.g. +1 234 567 8901' }
+    ];
+
+    let currentStep = 0;
+    const formData = {};
+
+    const formElement = document.getElementById('multiStepForm');
+    const progressElement = document.getElementById('progress');
+    const thankYouMsg = document.getElementById('thankYouMsg');
+
+    function renderStep() {
+      formElement.innerHTML = '';
+      const step = steps[currentStep];
+      const wrapper = document.createElement('div');
+      wrapper.className = 'form-step active';
+      let inputElement = '';
+      if (step.type === 'select') {
+        inputElement = `<select name="${step.name}" id="inputField">${step.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>`;
+      } else if (step.datalist) {
+        inputElement = `<input type="text" name="${step.name}" id="inputField" list="${step.datalist}" placeholder="${step.placeholder}" autocomplete="off" />`;
+      } else {
+        inputElement = `<input type="${step.type}" name="${step.name}" id="inputField" placeholder="${step.placeholder}" autocomplete="off" />`;
+      }
+      wrapper.innerHTML = `
+        <div class="form-title">${step.title}</div>
+        <div class="form-subtitle">${step.subtitle}</div>
+        ${inputElement}
+        <div id="errorMsg" class="error-msg"></div>
+        <button class="next-btn" onclick="nextStep()">Next</button>
+      `;
+      formElement.appendChild(wrapper);
+      updateProgress();
+      const input = document.getElementById('inputField');
+      input.addEventListener('input', () => {
+        if (step.name === 'email' || step.name === 'phone') validateInput(input);
+      });
+    }
+
+    function validateInput(input) {
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.textContent = '';
+      if (input.name === 'email') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(input.value.trim())) {
+          errorMsg.textContent = 'Please enter a valid email address';
+          return false;
+        }
+      } else if (input.name === 'phone') {
+        const digits = input.value.replace(/\D/g, '');
+        if (digits.length !== 10) {
+          errorMsg.textContent = 'Phone number must be 10 digits (US format)';
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function nextStep() {
+      const input = document.getElementById('inputField');
+      const errorMsg = document.getElementById('errorMsg');
+      if (!input || input.value.trim() === '') {
+        input.focus();
+        errorMsg.textContent = 'This field is required';
+        return;
+      }
+      if ((input.name === 'email' || input.name === 'phone') && !validateInput(input)) {
+        input.focus();
+        return;
+      }
+      formData[steps[currentStep].name] = input.value.trim();
+      currentStep++;
+      if (currentStep < steps.length) {
+        renderStep();
+      } else {
+        updateProgress(true);
+        formElement.style.display = 'none';
+        thankYouMsg.style.display = 'block';
+        console.log('Form Data:', formData);
+      }
+    }
+
+    function updateProgress(forceComplete = false) {
+      const percent = forceComplete ? 100 : ((currentStep) / steps.length) * 100;
+      progressElement.style.width = `${percent}%`;
+    }
+
+    const datalistHTML = `
+      <datalist id="yearList">
+        ${recentYears.map(year => `<option value="${year}">`).join('')}
+      </datalist>
+      <datalist id="zipList">
+        <option value="10001">
+        <option value="90001">
+        <option value="60601">
+        <option value="77001">
+        <option value="33101">
+      </datalist>
+    `;
+    document.body.insertAdjacentHTML('beforeend', datalistHTML);
+
+    renderStep();
+  </script>
+</body>
+</html>
